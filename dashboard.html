@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sleep Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141416;
+      --border: #222226;
+      --muted: #444450;
+      --text: #e0e0e8;
+      --dim: #888896;
+      --accent: #7b8cff;
+      --good: #4caf82;
+      --bad: #e05c5c;
+      --warn: #e0a040;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 32px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    header h1 { font-size: 14px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+    header span { font-size: 11px; color: var(--muted); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-wide { grid-template-columns: 1fr 1fr; }
+    .grid-full { grid-template-columns: 1fr; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+
+    .card-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .big-score {
+      font-size: 72px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      line-height: 1;
+      color: var(--accent);
+    }
+    .big-score-sub { color: var(--dim); font-size: 11px; margin-top: 6px; }
+
+    .nights-list { list-style: none; }
+    .nights-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .nights-list li:last-child { border-bottom: none; }
+    .nights-list .date { color: var(--dim); }
+    .score-good { color: var(--good); }
+    .score-bad  { color: var(--bad); }
+
+    /* Bar chart */
+    .chart-wrap {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 80px;
+      min-width: 100%;
+    }
+    .bar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 3px;
+      height: 100%;
+      justify-content: flex-end;
+      position: relative;
+      cursor: default;
+    }
+    .bar {
+      width: 100%;
+      background: var(--accent);
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .bar-col:hover .bar { opacity: 1; }
+    .bar-col:hover .bar-tip {
+      display: block;
+    }
+    .bar-tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1e24;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      font-size: 11px;
+      white-space: nowrap;
+      color: var(--text);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .chart-axis {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 6px;
+    }
+
+    /* Day of week */
+    .dow-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .dow-row:last-child { border-bottom: none; }
+    .dow-name { width: 90px; color: var(--dim); }
+    .dow-bar-wrap { flex: 1; height: 6px; background: var(--border); }
+    .dow-bar { height: 100%; background: var(--accent); opacity: 0.7; }
+    .dow-val { width: 36px; text-align: right; }
+    .dow-best .dow-name { color: var(--good); }
+    .dow-best .dow-bar { background: var(--good); opacity: 0.85; }
+    .dow-best .dow-val { color: var(--good); }
+
+    /* Contributors */
+    .contrib-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .contrib-row:last-child { border-bottom: none; }
+    .contrib-name { width: 120px; color: var(--dim); }
+    .contrib-bar-wrap { flex: 1; height: 6px; background: var(--border); }
+    .contrib-bar { height: 100%; }
+    .contrib-val { width: 36px; text-align: right; }
+    .contrib-weak .contrib-name { color: var(--bad); }
+    .contrib-weak .contrib-bar { background: var(--bad); }
+    .contrib-weak .contrib-val { color: var(--bad); }
+    .contrib-weak .contrib-tag {
+      font-size: 10px;
+      color: var(--bad);
+      border: 1px solid var(--bad);
+      padding: 1px 5px;
+      opacity: 0.8;
+    }
+    .contrib-normal .contrib-bar { background: var(--accent); opacity: 0.6; }
+
+    #status { color: var(--muted); font-size: 12px; padding: 40px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sleep Dashboard</h1>
+    <span id="range"></span>
+  </header>
+
+  <div id="status">Loading data from localhost:3000/api/sleep…</div>
+  <div id="app" style="display:none">
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">Average Sleep Score — 180 days</div>
+        <div class="big-score" id="avg-score"></div>
+        <div class="big-score-sub" id="avg-sub"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Best 5 Nights</div>
+        <ul class="nights-list" id="best-nights"></ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Worst 5 Nights</div>
+        <ul class="nights-list" id="worst-nights"></ul>
+      </div>
+    </div>
+
+    <div class="grid grid-full" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-label">Score Over Time</div>
+        <div class="chart-wrap">
+          <div class="chart" id="chart"></div>
+        </div>
+        <div class="chart-axis">
+          <span id="chart-start"></span>
+          <span id="chart-end"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-wide">
+      <div class="card">
+        <div class="card-label">Average Score by Day of Week</div>
+        <div id="dow"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Contributor Breakdown</div>
+        <div id="contributors"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    async function load() {
+      let data;
+      try {
+        const res = await fetch('http://localhost:3000/api/sleep');
+        const json = await res.json();
+        data = json.data;
+      } catch (e) {
+        document.getElementById('status').textContent = 'Error: could not reach http://localhost:3000/api/sleep — is the server running?';
+        return;
+      }
+
+      if (!data || !data.length) {
+        document.getElementById('status').textContent = 'No sleep data returned.';
+        return;
+      }
+
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('range').textContent =
+        `${data[0].day}  →  ${data[data.length - 1].day}  ·  ${data.length} nights`;
+
+      // Average
+      const avg = data.reduce((s, d) => s + d.score, 0) / data.length;
+      document.getElementById('avg-score').textContent = avg.toFixed(1);
+      const scoreColor = avg >= 85 ? 'var(--good)' : avg >= 75 ? 'var(--accent)' : 'var(--warn)';
+      document.getElementById('avg-score').style.color = scoreColor;
+      document.getElementById('avg-sub').textContent =
+        avg >= 85 ? 'consistently strong' : avg >= 75 ? 'room to improve' : 'needs attention';
+
+      // Best / worst
+      const sorted = [...data].sort((a, b) => b.score - a.score);
+      const renderNights = (el, nights, cls) => {
+        el.innerHTML = nights.map(d =>
+          `<li><span class="date">${d.day}</span><span class="${cls}">${d.score}</span></li>`
+        ).join('');
+      };
+      renderNights(document.getElementById('best-nights'), sorted.slice(0, 5), 'score-good');
+      renderNights(document.getElementById('worst-nights'), sorted.slice(-5).reverse(), 'score-bad');
+
+      // Bar chart
+      const chart = document.getElementById('chart');
+      const maxScore = Math.max(...data.map(d => d.score));
+      chart.innerHTML = data.map(d => {
+        const h = Math.round((d.score / maxScore) * 100);
+        const c = d.score >= 85 ? 'var(--good)' : d.score >= 70 ? 'var(--accent)' : 'var(--bad)';
+        return `<div class="bar-col">
+          <div class="bar-tip">${d.day}<br>${d.score}</div>
+          <div class="bar" style="height:${h}%;background:${c};opacity:0.7"></div>
+        </div>`;
+      }).join('');
+      document.getElementById('chart-start').textContent = data[0].day;
+      document.getElementById('chart-end').textContent = data[data.length - 1].day;
+
+      // Day of week
+      const byDay = {};
+      data.forEach(d => {
+        const dow = new Date(d.day).getUTCDay();
+        if (!byDay[dow]) byDay[dow] = [];
+        byDay[dow].push(d.score);
+      });
+      const dowAvgs = Object.entries(byDay)
+        .map(([dow, scores]) => ({ day: DAYS[dow], avg: scores.reduce((a,b) => a+b,0)/scores.length }))
+        .sort((a, b) => b.avg - a.avg);
+      const maxDow = Math.max(...dowAvgs.map(d => d.avg));
+      document.getElementById('dow').innerHTML = dowAvgs.map((d, i) =>
+        `<div class="dow-row ${i === 0 ? 'dow-best' : ''}">
+          <div class="dow-name">${d.day}</div>
+          <div class="dow-bar-wrap"><div class="dow-bar" style="width:${(d.avg/maxDow*100).toFixed(1)}%"></div></div>
+          <div class="dow-val">${d.avg.toFixed(1)}</div>
+        </div>`
+      ).join('');
+
+      // Contributors
+      const keys = Object.keys(data[0].contributors);
+      const contribAvgs = keys.map(k => ({
+        name: k,
+        avg: data.reduce((s, d) => s + d.contributors[k], 0) / data.length,
+      })).sort((a, b) => a.avg - b.avg);
+      const maxContrib = Math.max(...contribAvgs.map(c => c.avg));
+      const weakest = contribAvgs[0].name;
+      document.getElementById('contributors').innerHTML = contribAvgs.map(c =>
+        `<div class="contrib-row ${c.name === weakest ? 'contrib-weak' : 'contrib-normal'}">
+          <div class="contrib-name">${c.name.replace(/_/g, ' ')}</div>
+          <div class="contrib-bar-wrap"><div class="contrib-bar" style="width:${(c.avg/maxContrib*100).toFixed(1)}%"></div></div>
+          <div class="contrib-val">${c.avg.toFixed(1)}</div>
+          ${c.name === weakest ? '<span class="contrib-tag">weak</span>' : ''}
+        </div>`
+      ).join('');
+    }
+
+    load();
+  </script>
+</body>
+</html>
