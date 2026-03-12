@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Latency Deep Dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #000000;
+      --surface: #0A0A0A;
+      --muted: #333;
+      --dim: #666;
+      --text: #e0e0e0;
+      --label: #555;
+      --accent: #0066FF;
+      --bad: #FF3B3B;
+      --good: #00E676;
+      --bar-track: #111;
+      --divider: #111;
+      --tip-bg: #111;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #FFFFFF;
+      --surface: #F5F5F5;
+      --muted: #ccc;
+      --dim: #888;
+      --text: #0A0A0A;
+      --label: #999;
+      --accent: #0066FF;
+      --bad: #FF3B3B;
+      --good: #00994D;
+      --bar-track: #E0E0E0;
+      --divider: #E8E8E8;
+      --tip-bg: #F0F0F0;
+    }
+
+    *, *::before, *::after {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 40px 28px;
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--divider);
+      opacity: 0;
+      animation: fadeUp 0.4s ease forwards;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .back-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--muted);
+      color: var(--dim);
+      font-size: 16px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+    }
+    .theme-toggle:hover { border-color: var(--accent); }
+
+    .section {
+      margin-bottom: 12px;
+      opacity: 0;
+      animation: fadeUp 0.4s ease forwards;
+    }
+    .section:nth-child(2) { animation-delay: 0.05s; }
+    .section:nth-child(3) { animation-delay: 0.1s; }
+    .section:nth-child(4) { animation-delay: 0.15s; }
+    .section:nth-child(5) { animation-delay: 0.2s; }
+
+    .card {
+      background: var(--surface);
+      padding: 24px 28px;
+    }
+
+    .card-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--label);
+      margin-bottom: 16px;
+    }
+
+    /* Section 1 — Hero */
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .hero-score {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 120px;
+      line-height: 0.9;
+      color: var(--bad);
+      letter-spacing: -2px;
+    }
+    .hero-meta {
+      padding-bottom: 8px;
+    }
+    .hero-weak-label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.12em;
+      color: var(--bad);
+      margin-bottom: 8px;
+    }
+    .hero-explain {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--dim);
+      max-width: 360px;
+      line-height: 1.7;
+    }
+
+    /* Section 2 — canvas chart (same as dashboard) */
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+      margin-top: 12px;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--label);
+      flex-wrap: wrap;
+    }
+    .chart-legend span { display: flex; align-items: center; gap: 6px; }
+
+    /* Section 3 — Monthly bars */
+    .month-grid {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    .month-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .month-bar-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 120px;
+      position: relative;
+    }
+    .month-bar {
+      width: 100%;
+      background: var(--accent);
+      opacity: 0.6;
+      position: relative;
+    }
+    .month-badge {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bad);
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+    .month-badge-zero { display: none; }
+    .month-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      color: var(--dim);
+    }
+    .month-name {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--label);
+    }
+
+    /* Section 4 — Table */
+    .bad-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .bad-table th {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--label);
+      text-align: left;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--divider);
+    }
+    .bad-table td {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--divider);
+      font-size: 12px;
+      color: var(--dim);
+    }
+    .bad-table tr:last-child td { border-bottom: none; }
+    .bad-table .td-date { color: var(--dim); font-weight: 300; }
+    .bad-table .td-latency {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--bad);
+      letter-spacing: 1px;
+    }
+    .bad-table .td-score {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    #status { color: var(--label); font-size: 12px; padding: 60px 0; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+      <h1>Latency Deep Dive</h1>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">🌙</button>
+  </header>
+
+  <div id="status">Loading data from localhost:3000/api/sleep…</div>
+  <div id="app" style="display:none">
+
+    <!-- Section 1: Hero -->
+    <div class="section">
+      <div class="card">
+        <div class="card-label">Sleep Latency Score — 180-Day Average</div>
+        <div class="hero">
+          <div class="hero-score" id="hero-score"></div>
+          <div class="hero-meta">
+            <div class="hero-weak-label">Your Weak Point</div>
+            <div class="hero-explain">
+              Latency measures how quickly you fall asleep after getting into bed.
+              A score of 100 means you fell asleep almost instantly.
+              Your average of 73.1 suggests it consistently takes you longer than ideal.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Line chart -->
+    <div class="section">
+      <div class="card">
+        <div class="card-label">Latency Over Time — Are You Improving?</div>
+        <canvas id="latency-canvas" style="width:100%;display:block"></canvas>
+        <div class="chart-legend">
+          <span><span style="display:inline-block;width:24px;height:2px;background:#0066FF"></span> 7-day avg</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> nightly score</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 60</span>
+          <span><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> your avg (73.1)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;color:var(--label);margin-top:10px">
+          <span id="chart-start"></span>
+          <span id="chart-end"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Monthly bar chart -->
+    <div class="section">
+      <div class="card">
+        <div class="card-label">Average Latency Score by Month — Red Badge = Nights Below 60</div>
+        <div class="month-grid" id="month-grid"></div>
+      </div>
+    </div>
+
+    <!-- Section 4: Bad nights table -->
+    <div class="section">
+      <div class="card">
+        <div class="card-label" id="bad-table-label">Nights Where Latency Dropped Below 60 — Sorted Worst First</div>
+        <table class="bad-table" id="bad-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Day of Week</th>
+              <th>Latency Score</th>
+              <th>Overall Sleep Score</th>
+            </tr>
+          </thead>
+          <tbody id="bad-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Theme toggle
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    const saved = localStorage.getItem('theme') || 'dark';
+    if (saved === 'light') { root.setAttribute('data-theme', 'light'); btn.textContent = '☀️'; }
+
+    btn.addEventListener('click', () => {
+      const isLight = root.getAttribute('data-theme') === 'light';
+      root.setAttribute('data-theme', isLight ? 'dark' : 'light');
+      btn.textContent = isLight ? '🌙' : '☀️';
+      localStorage.setItem('theme', isLight ? 'dark' : 'light');
+      requestAnimationFrame(() => drawLatencyChart(_data));
+    });
+
+    let _data = null;
+    const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    async function load() {
+      let data;
+      try {
+        const res = await fetch('http://localhost:3000/api/sleep');
+        const json = await res.json();
+        data = json.data;
+      } catch (e) {
+        document.getElementById('status').textContent = 'Error: could not reach http://localhost:3000/api/sleep — is the server running?';
+        return;
+      }
+      if (!data || !data.length) {
+        document.getElementById('status').textContent = 'No sleep data returned.';
+        return;
+      }
+
+      _data = data;
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+
+      // Section 1: hero avg
+      const latAvg = data.reduce((s, d) => s + d.contributors.latency, 0) / data.length;
+      document.getElementById('hero-score').textContent = latAvg.toFixed(1);
+
+      // Section 2: line chart
+      drawLatencyChart(data);
+      document.getElementById('chart-start').textContent = data[0].day;
+      document.getElementById('chart-end').textContent = data[data.length - 1].day;
+
+      // Section 3: monthly bars
+      const byMonth = {};
+      data.forEach(d => {
+        const key = d.day.slice(0, 7); // YYYY-MM
+        if (!byMonth[key]) byMonth[key] = [];
+        byMonth[key].push(d.contributors.latency);
+      });
+      const months = Object.keys(byMonth).sort();
+      const monthAvgs = months.map(k => ({
+        label: MONTHS_SHORT[parseInt(k.split('-')[1]) - 1],
+        avg: byMonth[k].reduce((a, b) => a + b, 0) / byMonth[k].length,
+        badCount: byMonth[k].filter(v => v < 60).length,
+      }));
+      const maxAvg = Math.max(...monthAvgs.map(m => m.avg));
+      document.getElementById('month-grid').innerHTML = monthAvgs.map(m => {
+        const h = Math.round((m.avg / maxAvg) * 100);
+        return `<div class="month-col">
+          <div class="month-val">${m.avg.toFixed(0)}</div>
+          <div class="month-bar-wrap">
+            <div class="month-bar" style="height:${h}%">
+              <span class="month-badge ${m.badCount === 0 ? 'month-badge-zero' : ''}">${m.badCount}</span>
+            </div>
+          </div>
+          <div class="month-name">${m.label}</div>
+        </div>`;
+      }).join('');
+
+      // Section 4: bad nights table
+      const badNights = data
+        .filter(d => d.contributors.latency < 60)
+        .sort((a, b) => a.contributors.latency - b.contributors.latency);
+      document.getElementById('bad-table-label').textContent =
+        `Nights Where Latency Dropped Below 60 — ${badNights.length} total, sorted worst first`;
+      const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      document.getElementById('bad-table-body').innerHTML = badNights.map(d =>
+        `<tr>
+          <td class="td-date">${d.day}</td>
+          <td class="td-date">${DAYS_FULL[new Date(d.day).getUTCDay()]}</td>
+          <td class="td-latency">${d.contributors.latency}</td>
+          <td class="td-score">${d.score}</td>
+        </tr>`
+      ).join('');
+    }
+
+    function drawLatencyChart(data) {
+      const canvas = document.getElementById('latency-canvas');
+      const style = getComputedStyle(document.documentElement);
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+      const colorLabel   = style.getPropertyValue('--label').trim();
+      const colorDivider = style.getPropertyValue('--divider').trim();
+      const colorAccent  = '#0066FF';
+      const colorBad     = '#FF3B3B';
+      const colorAvgLine = isDark ? '#444' : '#bbb';
+
+      const PAD = { top: 16, right: 36, bottom: 36, left: 44 };
+      const W = canvas.parentElement.clientWidth - 56;
+      const H = 220;
+      canvas.width  = W;
+      canvas.height = H;
+      canvas.style.height = H + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      const plotW = W - PAD.left - PAD.right;
+      const plotH = H - PAD.top - PAD.bottom;
+      const n = data.length;
+      const AVG_LINE = 73.1;
+      const YMIN = 0, YMAX = 100;
+
+      const xPos = i => PAD.left + (i / (n - 1)) * plotW;
+      const yPos = v => PAD.top + plotH - ((v - YMIN) / (YMAX - YMIN)) * plotH;
+
+      // Y gridlines + labels
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      [0, 25, 50, 75, 100].forEach(v => {
+        const y = yPos(v);
+        ctx.strokeStyle = colorDivider;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, y);
+        ctx.lineTo(W - PAD.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = colorLabel;
+        ctx.fillText(v, PAD.left - 8, y);
+      });
+
+      // Average reference line
+      const yAvg = yPos(AVG_LINE);
+      ctx.strokeStyle = colorAvgLine;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, yAvg);
+      ctx.lineTo(W - PAD.right, yAvg);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colorAvgLine;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('avg 73.1', W - PAD.right + 4, yAvg);
+
+      // X-axis month labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = colorLabel;
+      let lastMonth = -1;
+      data.forEach((d, i) => {
+        const mo = new Date(d.day).getUTCMonth();
+        if (mo !== lastMonth) {
+          lastMonth = mo;
+          ctx.fillText(MONTHS_SHORT[mo], xPos(i), H - PAD.bottom + 8);
+        }
+      });
+
+      // Individual dots
+      data.forEach((d, i) => {
+        const lat = d.contributors.latency;
+        const x = xPos(i), y = yPos(lat);
+        const below = lat < 60;
+        ctx.beginPath();
+        ctx.arc(x, y, below ? 3.5 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = below ? colorBad : colorAccent;
+        ctx.globalAlpha = below ? 0.9 : 0.4;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // 7-day rolling average line
+      ctx.beginPath();
+      ctx.strokeStyle = colorAccent;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      let started = false;
+      data.forEach((d, i) => {
+        if (i < 6) return;
+        const window = data.slice(i - 6, i + 1).map(x => x.contributors.latency);
+        const avg = window.reduce((a, b) => a + b, 0) / 7;
+        const x = xPos(i), y = yPos(avg);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -16,6 +16,17 @@ const start = new Date();
 start.setDate(today.getDate() - 180);
 const fmt = (d) => d.toISOString().split('T')[0];
 
+const yesterday = new Date();
+yesterday.setDate(today.getDate() - 1);
+
+async function ouraGet(endpoint, params) {
+  const response = await axios.get(
+    `https://api.ouraring.com/v2/usercollection/${endpoint}`,
+    { headers: { Authorization: `Bearer ${token}` }, params }
+  );
+  return response.data;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -46,6 +57,57 @@ const server = http.createServer(async (req, res) => {
       if (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Could not read dashboard.html');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
+  const todayStr = fmt(today);
+  const yesterdayStr = fmt(yesterday);
+
+  const apiRoutes = {
+    '/api/readiness': { endpoint: 'daily_readiness', start: todayStr,     end: todayStr },
+    '/api/activity':  { endpoint: 'daily_activity',  start: todayStr,     end: todayStr },
+    '/api/stress':    { endpoint: 'daily_stress',    start: todayStr,     end: todayStr },
+    '/api/sleep/yesterday': { endpoint: 'daily_sleep', start: yesterdayStr, end: yesterdayStr },
+  };
+
+  if (apiRoutes[url.pathname]) {
+    const { endpoint, start: s, end: e } = apiRoutes[url.pathname];
+    try {
+      const data = await ouraGet(endpoint, { start_date: s, end_date: e });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  if (url.pathname === '/today' || url.pathname === '/today.html') {
+    const file = path.join(__dirname, 'today.html');
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Could not read today.html');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
+  if (url.pathname === '/latency' || url.pathname === '/latency.html') {
+    const file = path.join(__dirname, 'latency.html');
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Could not read latency.html');
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html' });

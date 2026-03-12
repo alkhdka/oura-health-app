@@ -322,6 +322,17 @@
     }
     .theme-toggle:hover { border-color: var(--accent); }
 
+    .view-details-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .view-details-link:hover { text-decoration: underline; }
+
     #status {
       color: var(--label);
       font-size: 12px;
@@ -332,7 +343,10 @@
 </head>
 <body>
   <header>
-    <h1>Sleep Dashboard</h1>
+    <div style="display:flex;align-items:center;gap:24px">
+      <h1>Sleep Dashboard</h1>
+      <a href="today.html" class="view-details-link" style="font-size:11px">TODAY →</a>
+    </div>
     <div style="display:flex;align-items:center;gap:16px">
       <span id="range"></span>
       <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">🌙</button>
@@ -379,6 +393,19 @@
       <div class="card">
         <div class="card-label">Contributor Breakdown</div>
         <div id="contributors"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-full" style="margin-top:12px">
+      <div class="card">
+        <div class="card-label">Latency Trend — Are You Improving?</div>
+        <canvas id="latency-canvas" style="width:100%;display:block"></canvas>
+        <div style="display:flex;gap:24px;margin-top:12px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--label)">
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:24px;height:2px;background:#0066FF"></span> 7-day avg</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> nightly score</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 60</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> your avg (73.1)</span>
+        </div>
       </div>
     </div>
 
@@ -488,7 +515,10 @@
         return `<div class="contrib-row ${isWeak ? 'contrib-weak' : 'contrib-normal'}">
           <div class="contrib-header">
             <span class="contrib-name">${c.name.replace(/_/g, ' ')}</span>
-            ${isWeak ? '<span class="contrib-weak-tag">weak point</span>' : ''}
+            <span style="display:flex;align-items:center;gap:12px">
+              ${isWeak ? '<span class="contrib-weak-tag">weak point</span>' : ''}
+              ${c.name === 'latency' ? '<a href="latency.html" class="view-details-link">VIEW DETAILS →</a>' : ''}
+            </span>
           </div>
           <div class="contrib-bar-outer">
             <div class="contrib-bar-fill" style="width:${pct}%">
@@ -497,6 +527,121 @@
           </div>
         </div>`;
       }).join('');
+
+      // Latency trend canvas
+      drawLatencyChart(data);
+
+      // Redraw canvas when theme toggles
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        requestAnimationFrame(() => drawLatencyChart(data));
+      }, { once: false });
+    }
+
+    function drawLatencyChart(data) {
+      const canvas = document.getElementById('latency-canvas');
+      const style = getComputedStyle(document.documentElement);
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+      const colorText   = style.getPropertyValue('--text').trim();
+      const colorLabel  = style.getPropertyValue('--label').trim();
+      const colorDivider = style.getPropertyValue('--divider').trim();
+      const colorAccent = '#0066FF';
+      const colorBad    = '#FF3B3B';
+      const colorAvgLine = isDark ? '#444' : '#bbb';
+
+      const PAD = { top: 16, right: 20, bottom: 36, left: 44 };
+      const W = canvas.parentElement.clientWidth - 56; // card padding 28*2
+      const H = 200;
+      canvas.width  = W;
+      canvas.height = H;
+      canvas.style.height = H + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      const plotW = W - PAD.left - PAD.right;
+      const plotH = H - PAD.top - PAD.bottom;
+      const n = data.length;
+      const AVG_LINE = 73.1;
+      const YMIN = 0, YMAX = 100;
+
+      const xPos = i => PAD.left + (i / (n - 1)) * plotW;
+      const yPos = v => PAD.top + plotH - ((v - YMIN) / (YMAX - YMIN)) * plotH;
+
+      // Y gridlines + labels at 0, 25, 50, 75, 100
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      [0, 25, 50, 75, 100].forEach(v => {
+        const y = yPos(v);
+        ctx.strokeStyle = colorDivider;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, y);
+        ctx.lineTo(W - PAD.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = colorLabel;
+        ctx.fillText(v, PAD.left - 8, y);
+      });
+
+      // Average dashed reference line at 73.1
+      const yAvg = yPos(AVG_LINE);
+      ctx.strokeStyle = colorAvgLine;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, yAvg);
+      ctx.lineTo(W - PAD.right, yAvg);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colorAvgLine;
+      ctx.textAlign = 'left';
+      ctx.fillText('73.1', W - PAD.right + 3, yAvg);
+
+      // X-axis month labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = colorLabel;
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      let lastMonth = -1;
+      data.forEach((d, i) => {
+        const mo = new Date(d.day).getUTCMonth();
+        if (mo !== lastMonth) {
+          lastMonth = mo;
+          ctx.fillText(MONTHS[mo], xPos(i), H - PAD.bottom + 8);
+        }
+      });
+
+      // Individual dots
+      data.forEach((d, i) => {
+        const lat = d.contributors.latency;
+        const x = xPos(i), y = yPos(lat);
+        const below = lat < 60;
+        ctx.beginPath();
+        ctx.arc(x, y, below ? 3 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = below ? colorBad : colorAccent;
+        ctx.globalAlpha = below ? 0.9 : 0.45;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // 7-day rolling average line
+      ctx.beginPath();
+      ctx.strokeStyle = colorAccent;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      let started = false;
+      data.forEach((d, i) => {
+        if (i < 6) return;
+        const window = data.slice(i - 6, i + 1).map(x => x.contributors.latency);
+        const avg = window.reduce((a, b) => a + b, 0) / 7;
+        const x = xPos(i), y = yPos(avg);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
     }
 
     load();
