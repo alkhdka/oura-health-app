@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Latency Deep Dive</title>
+  <title>Recovery Index Deep Dive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -70,11 +70,8 @@
       opacity: 0;
       animation: fadeUp 0.4s ease forwards;
     }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
+    .header-left { display: flex; align-items: center; gap: 24px; }
+
     .nav { display: flex; gap: 4px; }
     .nav-link {
       font-family: 'Inter', sans-serif;
@@ -89,6 +86,18 @@
     .nav-link:hover { color: var(--text); text-decoration: none; }
     .nav-link.active { color: var(--dim); background: var(--surface); border-radius: 4px; cursor: default; pointer-events: none; }
     .nav-link:not(.active) { color: var(--accent); text-decoration: underline; }
+
+    .back-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+
     header h1 {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 22px;
@@ -127,7 +136,6 @@
       background: var(--surface);
       padding: 24px 28px;
     }
-
     .card-label {
       font-family: 'Inter', sans-serif;
       font-size: 10px;
@@ -139,12 +147,7 @@
     }
 
     /* Section 1 — Hero */
-    .hero {
-      display: flex;
-      align-items: flex-end;
-      gap: 28px;
-      flex-wrap: wrap;
-    }
+    .hero { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
     .hero-score {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 120px;
@@ -152,9 +155,7 @@
       color: var(--bad);
       letter-spacing: -2px;
     }
-    .hero-meta {
-      padding-bottom: 8px;
-    }
+    .hero-meta { padding-bottom: 8px; }
     .hero-weak-label {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 18px;
@@ -170,7 +171,7 @@
       line-height: 1.7;
     }
 
-    /* Section 2 — canvas chart (same as dashboard) */
+    /* Section 2 — canvas chart */
     .chart-legend {
       display: flex;
       gap: 24px;
@@ -184,11 +185,7 @@
     .chart-legend span { display: flex; align-items: center; gap: 6px; }
 
     /* Section 3 — Monthly bars */
-    .month-grid {
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-    }
+    .month-grid { display: flex; align-items: flex-end; gap: 10px; }
     .month-col {
       flex: 1;
       display: flex;
@@ -205,12 +202,7 @@
       height: 120px;
       position: relative;
     }
-    .month-bar {
-      width: 100%;
-      background: var(--accent);
-      opacity: 0.6;
-      position: relative;
-    }
+    .month-bar { width: 100%; background: var(--accent); opacity: 0.6; position: relative; }
     .month-badge {
       position: absolute;
       top: -22px;
@@ -224,23 +216,11 @@
       white-space: nowrap;
     }
     .month-badge-zero { display: none; }
-    .month-val {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      color: var(--dim);
-    }
-    .month-name {
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--label);
-    }
+    .month-val { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--dim); }
+    .month-name { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--label); }
 
     /* Section 4 — Table */
-    .bad-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    .bad-table { width: 100%; border-collapse: collapse; }
     .bad-table th {
       font-size: 10px;
       font-weight: 500;
@@ -259,7 +239,7 @@
     }
     .bad-table tr:last-child td { border-bottom: none; }
     .bad-table .td-date { color: var(--dim); font-weight: 300; }
-    .bad-table .td-latency {
+    .bad-table .td-recovery {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 20px;
       color: var(--bad);
@@ -283,25 +263,25 @@
         <a href="dashboard.html" class="nav-link">Sleep</a>
         <a href="readiness.html" class="nav-link">Readiness</a>
       </nav>
+      <a href="readiness.html" class="back-link">← Readiness</a>
+      <h1>Recovery Index Deep Dive</h1>
     </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">🌙</button>
   </header>
 
-  <div id="status">Loading data from localhost:3000/api/sleep…</div>
+  <div id="status">Loading readiness data…</div>
   <div id="app" style="display:none">
 
     <!-- Section 1: Hero -->
     <div class="section">
       <div class="card">
-        <div class="card-label">Sleep Latency Score — 180-Day Average</div>
+        <div class="card-label">Recovery Index — 180-Day Average</div>
         <div class="hero">
           <div class="hero-score" id="hero-score"></div>
           <div class="hero-meta">
             <div class="hero-weak-label">Your Weak Point</div>
             <div class="hero-explain">
-              Latency measures how quickly you fall asleep after getting into bed.
-              A score of 100 means you fell asleep almost instantly.
-              Your average of 73.1 suggests it consistently takes you longer than ideal.
+              Measures how recovered your body is from recent physical strain — 100 means fully recovered.
             </div>
           </div>
         </div>
@@ -311,13 +291,13 @@
     <!-- Section 2: Line chart -->
     <div class="section">
       <div class="card">
-        <div class="card-label">Latency Over Time — Are You Improving?</div>
-        <canvas id="latency-canvas" style="width:100%;display:block"></canvas>
+        <div class="card-label">Recovery Index Over Time — Are You Improving?</div>
+        <canvas id="recovery-canvas" style="width:100%;display:block"></canvas>
         <div class="chart-legend">
           <span><span style="display:inline-block;width:24px;height:2px;background:#0066FF"></span> 7-day avg</span>
-          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> nightly score</span>
-          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 60</span>
-          <span><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> your avg (73.1)</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> daily score</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 70</span>
+          <span><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> <span id="legend-avg"></span></span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;color:var(--label);margin-top:10px">
           <span id="chart-start"></span>
@@ -329,22 +309,22 @@
     <!-- Section 3: Monthly bar chart -->
     <div class="section">
       <div class="card">
-        <div class="card-label">Average Latency Score by Month — Red Badge = Nights Below 60</div>
+        <div class="card-label" id="month-label">Average Recovery Index by Month — Red Badge = Days Below 70</div>
         <div class="month-grid" id="month-grid"></div>
       </div>
     </div>
 
-    <!-- Section 4: Bad nights table -->
+    <!-- Section 4: Bad days table -->
     <div class="section">
       <div class="card">
-        <div class="card-label" id="bad-table-label">Nights Where Latency Dropped Below 60 — Sorted Worst First</div>
+        <div class="card-label" id="bad-table-label">Days Where Recovery Index Dropped Below 70 — Sorted Worst First</div>
         <table class="bad-table" id="bad-table">
           <thead>
             <tr>
               <th>Date</th>
               <th>Day of Week</th>
-              <th>Latency Score</th>
-              <th>Overall Sleep Score</th>
+              <th>Recovery Index</th>
+              <th>Overall Readiness Score</th>
             </tr>
           </thead>
           <tbody id="bad-table-body"></tbody>
@@ -355,7 +335,6 @@
   </div>
 
   <script>
-    // Theme toggle
     const root = document.documentElement;
     const btn = document.getElementById('theme-toggle');
     const saved = localStorage.getItem('theme') || 'dark';
@@ -366,52 +345,63 @@
       root.setAttribute('data-theme', isLight ? 'dark' : 'light');
       btn.textContent = isLight ? '🌙' : '☀️';
       localStorage.setItem('theme', isLight ? 'dark' : 'light');
-      requestAnimationFrame(() => drawLatencyChart(_data));
+      requestAnimationFrame(() => drawChart(_data, _avg));
     });
 
-    let _data = null;
+    let _data = null, _avg = null;
     const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
     async function load() {
       let data;
       try {
-        const res = await fetch('http://localhost:3000/api/sleep');
+        const res = await fetch('/api/readiness/history180');
         const json = await res.json();
         data = json.data;
       } catch (e) {
-        document.getElementById('status').textContent = 'Error: could not reach http://localhost:3000/api/sleep — is the server running?';
+        document.getElementById('status').textContent = 'Error: could not reach server — is it running?';
         return;
       }
       if (!data || !data.length) {
-        document.getElementById('status').textContent = 'No sleep data returned.';
+        document.getElementById('status').textContent = 'No readiness data returned.';
         return;
       }
 
-      _data = data;
+      // Filter to entries with recovery_index contributor
+      const validData = data.filter(d => d.contributors?.recovery_index != null);
+      if (!validData.length) {
+        document.getElementById('status').textContent = 'No recovery index data found.';
+        return;
+      }
+
+      _data = validData;
+      const riAvg = validData.reduce((s, d) => s + d.contributors.recovery_index, 0) / validData.length;
+      _avg = riAvg;
+
       document.getElementById('status').style.display = 'none';
       document.getElementById('app').style.display = 'block';
 
-      // Section 1: hero avg
-      const latAvg = data.reduce((s, d) => s + d.contributors.latency, 0) / data.length;
-      document.getElementById('hero-score').textContent = latAvg.toFixed(1);
+      // Section 1: Hero
+      document.getElementById('hero-score').textContent = riAvg.toFixed(1);
 
-      // Section 2: line chart
-      drawLatencyChart(data);
-      document.getElementById('chart-start').textContent = data[0].day;
-      document.getElementById('chart-end').textContent = data[data.length - 1].day;
+      // Section 2: Line chart
+      document.getElementById('legend-avg').textContent = `your avg (${riAvg.toFixed(1)})`;
+      drawChart(validData, riAvg);
+      document.getElementById('chart-start').textContent = validData[0].day;
+      document.getElementById('chart-end').textContent = validData[validData.length - 1].day;
 
-      // Section 3: monthly bars
+      // Section 3: Monthly bars
       const byMonth = {};
-      data.forEach(d => {
-        const key = d.day.slice(0, 7); // YYYY-MM
+      validData.forEach(d => {
+        const key = d.day.slice(0, 7);
         if (!byMonth[key]) byMonth[key] = [];
-        byMonth[key].push(d.contributors.latency);
+        byMonth[key].push(d.contributors.recovery_index);
       });
       const months = Object.keys(byMonth).sort();
       const monthAvgs = months.map(k => ({
         label: MONTHS_SHORT[parseInt(k.split('-')[1]) - 1],
         avg: byMonth[k].reduce((a, b) => a + b, 0) / byMonth[k].length,
-        badCount: byMonth[k].filter(v => v < 60).length,
+        badCount: byMonth[k].filter(v => v < 70).length,
       }));
       const maxAvg = Math.max(...monthAvgs.map(m => m.avg));
       document.getElementById('month-grid').innerHTML = monthAvgs.map(m => {
@@ -427,25 +417,24 @@
         </div>`;
       }).join('');
 
-      // Section 4: bad nights table
-      const badNights = data
-        .filter(d => d.contributors.latency < 60)
-        .sort((a, b) => a.contributors.latency - b.contributors.latency);
+      // Section 4: Bad days table
+      const badDays = validData
+        .filter(d => d.contributors.recovery_index < 70)
+        .sort((a, b) => a.contributors.recovery_index - b.contributors.recovery_index);
       document.getElementById('bad-table-label').textContent =
-        `Nights Where Latency Dropped Below 60 — ${badNights.length} total, sorted worst first`;
-      const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      document.getElementById('bad-table-body').innerHTML = badNights.map(d =>
+        `Days Where Recovery Index Dropped Below 70 — ${badDays.length} total, sorted worst first`;
+      document.getElementById('bad-table-body').innerHTML = badDays.map(d =>
         `<tr>
           <td class="td-date">${d.day}</td>
           <td class="td-date">${DAYS_FULL[new Date(d.day).getUTCDay()]}</td>
-          <td class="td-latency">${d.contributors.latency}</td>
+          <td class="td-recovery">${d.contributors.recovery_index}</td>
           <td class="td-score">${d.score}</td>
         </tr>`
       ).join('');
     }
 
-    function drawLatencyChart(data) {
-      const canvas = document.getElementById('latency-canvas');
+    function drawChart(data, avgLine) {
+      const canvas = document.getElementById('recovery-canvas');
       const style = getComputedStyle(document.documentElement);
       const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
 
@@ -455,7 +444,7 @@
       const colorBad     = '#FF3B3B';
       const colorAvgLine = isDark ? '#444' : '#bbb';
 
-      const PAD = { top: 16, right: 36, bottom: 36, left: 44 };
+      const PAD = { top: 16, right: 56, bottom: 36, left: 44 };
       const W = canvas.parentElement.clientWidth - 56;
       const H = 220;
       canvas.width  = W;
@@ -468,13 +457,12 @@
       const plotW = W - PAD.left - PAD.right;
       const plotH = H - PAD.top - PAD.bottom;
       const n = data.length;
-      const AVG_LINE = 73.1;
       const YMIN = 0, YMAX = 100;
 
       const xPos = i => PAD.left + (i / (n - 1)) * plotW;
       const yPos = v => PAD.top + plotH - ((v - YMIN) / (YMAX - YMIN)) * plotH;
 
-      // Y gridlines + labels
+      // Y gridlines
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -492,8 +480,8 @@
         ctx.fillText(v, PAD.left - 8, y);
       });
 
-      // Average reference line
-      const yAvg = yPos(AVG_LINE);
+      // 180-day average dashed reference line
+      const yAvg = yPos(avgLine);
       ctx.strokeStyle = colorAvgLine;
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 5]);
@@ -505,7 +493,7 @@
       ctx.fillStyle = colorAvgLine;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText('avg 73.1', W - PAD.right + 4, yAvg);
+      ctx.fillText(`avg ${avgLine.toFixed(1)}`, W - PAD.right + 4, yAvg);
 
       // X-axis month labels
       ctx.textAlign = 'center';
@@ -522,9 +510,9 @@
 
       // Individual dots
       data.forEach((d, i) => {
-        const lat = d.contributors.latency;
-        const x = xPos(i), y = yPos(lat);
-        const below = lat < 60;
+        const ri = d.contributors.recovery_index;
+        const x = xPos(i), y = yPos(ri);
+        const below = ri < 70;
         ctx.beginPath();
         ctx.arc(x, y, below ? 3.5 : 2, 0, Math.PI * 2);
         ctx.fillStyle = below ? colorBad : colorAccent;
@@ -541,8 +529,8 @@
       let started = false;
       data.forEach((d, i) => {
         if (i < 6) return;
-        const window = data.slice(i - 6, i + 1).map(x => x.contributors.latency);
-        const avg = window.reduce((a, b) => a + b, 0) / 7;
+        const window7 = data.slice(i - 6, i + 1).map(x => x.contributors.recovery_index);
+        const avg = window7.reduce((a, b) => a + b, 0) / 7;
         const x = xPos(i), y = yPos(avg);
         if (!started) { ctx.moveTo(x, y); started = true; }
         else ctx.lineTo(x, y);

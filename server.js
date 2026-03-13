@@ -51,7 +51,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === '/' || url.pathname === '/dashboard.html') {
+  if (url.pathname === '/dashboard.html') {
     const file = path.join(__dirname, 'dashboard.html');
     fs.readFile(file, (err, data) => {
       if (err) {
@@ -65,14 +65,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const todayStr = fmt(today);
-  const yesterdayStr = fmt(yesterday);
+  const now = new Date();
+  const todayStr = fmt(now);
+  const yd = new Date(now); yd.setDate(now.getDate() - 1);
+  const yesterdayStr = fmt(yd);
+  const td30 = new Date(now); td30.setDate(now.getDate() - 30);
+  const thirtyDaysAgo = fmt(td30);
 
   const apiRoutes = {
-    '/api/readiness': { endpoint: 'daily_readiness', start: todayStr,     end: todayStr },
-    '/api/activity':  { endpoint: 'daily_activity',  start: todayStr,     end: todayStr },
-    '/api/stress':    { endpoint: 'daily_stress',    start: todayStr,     end: todayStr },
-    '/api/sleep/yesterday': { endpoint: 'daily_sleep', start: yesterdayStr, end: yesterdayStr },
+    '/api/readiness':         { endpoint: 'daily_readiness', start: todayStr,     end: todayStr },
+    '/api/activity':          { endpoint: 'daily_activity',  start: todayStr,     end: todayStr },
+    '/api/stress':            { endpoint: 'daily_stress',    start: todayStr,     end: todayStr },
+    '/api/sleep/yesterday':   { endpoint: 'daily_sleep',     start: todayStr,     end: todayStr },
+    '/api/sleep/30days':      { endpoint: 'daily_sleep',     start: thirtyDaysAgo, end: yesterdayStr },
+    '/api/readiness/30days':  { endpoint: 'daily_readiness', start: thirtyDaysAgo, end: todayStr },
+    '/api/sleep/history':     { endpoint: 'daily_sleep',     start: thirtyDaysAgo, end: yesterdayStr },
+    '/api/readiness/history': { endpoint: 'daily_readiness', start: thirtyDaysAgo, end: todayStr },
   };
 
   if (apiRoutes[url.pathname]) {
@@ -88,7 +96,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === '/today' || url.pathname === '/today.html') {
+  if (url.pathname === '/' || url.pathname === '/today' || url.pathname === '/today.html') {
     const file = path.join(__dirname, 'today.html');
     fs.readFile(file, (err, data) => {
       if (err) {
@@ -108,6 +116,48 @@ const server = http.createServer(async (req, res) => {
       if (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Could not read latency.html');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/readiness/history180') {
+    const now2 = new Date();
+    const start180 = new Date(now2); start180.setDate(now2.getDate() - 180);
+    try {
+      const data = await ouraGet('daily_readiness', { start_date: fmt(start180), end_date: fmt(now2) });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  if (url.pathname === '/recovery' || url.pathname === '/recovery.html') {
+    const file = path.join(__dirname, 'recovery.html');
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Could not read recovery.html');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
+  if (url.pathname === '/readiness' || url.pathname === '/readiness.html') {
+    const file = path.join(__dirname, 'readiness.html');
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Could not read readiness.html');
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html' });

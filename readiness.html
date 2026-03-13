@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sleep Dashboard</title>
+  <title>Readiness Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -55,7 +55,6 @@
       margin: 0 auto;
     }
 
-    /* Fade-in animation */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -81,14 +80,6 @@
       border-bottom: 1px solid var(--divider);
       opacity: 0;
       animation: fadeUp 0.4s ease forwards;
-    }
-    header h1 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 22px;
-      letter-spacing: 0.18em;
-      color: var(--dim);
-      text-transform: uppercase;
-      font-weight: 400;
     }
     header span {
       font-size: 10px;
@@ -122,7 +113,6 @@
       margin-bottom: 16px;
     }
 
-    /* Big score */
     .big-score {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 140px;
@@ -139,7 +129,6 @@
       font-weight: 300;
     }
 
-    /* Best / worst nights */
     .nights-list { list-style: none; }
     .nights-list li {
       display: flex;
@@ -167,14 +156,10 @@
       letter-spacing: 1px;
     }
 
-    /* Bar chart */
-    .chart-card {
-      position: relative;
-    }
+    .chart-card { position: relative; }
     .chart-wrap {
       overflow-x: auto;
       padding-bottom: 2px;
-      /* neon blue bottom-border glow */
       border-bottom: 2px solid var(--accent);
       box-shadow: 0 4px 20px 0 rgba(0, 102, 255, 0.35);
     }
@@ -230,7 +215,6 @@
       margin-top: 10px;
     }
 
-    /* Day of week */
     .dow-row {
       display: flex;
       align-items: center;
@@ -259,10 +243,7 @@
     .dow-best .dow-bar  { background: var(--accent); opacity: 1; }
     .dow-best .dow-val  { color: var(--accent); }
 
-    /* Contributors — full-width bars with score inside */
-    .contrib-row {
-      margin-bottom: 10px;
-    }
+    .contrib-row { margin-bottom: 10px; }
     .contrib-row:last-child { margin-bottom: 0; }
     .contrib-header {
       display: flex;
@@ -277,6 +258,16 @@
       font-weight: 500;
     }
     .contrib-weak .contrib-name { color: var(--bad); }
+    .view-details-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .view-details-link:hover { text-decoration: underline; }
     .contrib-weak-tag {
       font-size: 10px;
       letter-spacing: 0.1em;
@@ -306,7 +297,6 @@
     .contrib-normal .contrib-bar-fill { background: var(--accent); opacity: 0.55; }
     .contrib-weak   .contrib-bar-fill { background: var(--bad); opacity: 0.85; }
 
-    /* Theme toggle */
     .theme-toggle {
       background: none;
       border: 1px solid var(--muted);
@@ -322,17 +312,6 @@
       line-height: 1;
     }
     .theme-toggle:hover { border-color: var(--accent); }
-
-    .view-details-link {
-      font-family: 'Inter', sans-serif;
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .view-details-link:hover { text-decoration: underline; }
 
     .nav { display: flex; gap: 4px; }
     .nav-link {
@@ -362,8 +341,8 @@
     <div class="header-left">
       <a href="today.html" class="nav-link" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.18em;font-weight:400;text-transform:uppercase;">Today's Energy</a>
       <nav class="nav">
-        <a href="dashboard.html" class="nav-link active">Sleep</a>
-        <a href="readiness.html" class="nav-link">Readiness</a>
+        <a href="dashboard.html" class="nav-link">Sleep</a>
+        <a href="readiness.html" class="nav-link active">Readiness</a>
       </nav>
     </div>
     <div style="display:flex;align-items:center;gap:16px">
@@ -372,28 +351,30 @@
     </div>
   </header>
 
-  <div id="status">Loading data from localhost:3000/api/sleep…</div>
+  <div id="status">Loading readiness data…</div>
   <div id="app" style="display:none">
 
+    <!-- Section 1: Average score + best/worst -->
     <div class="grid">
       <div class="card">
-        <div class="card-label">Average Sleep Score — 180 days</div>
+        <div class="card-label">Average Readiness Score — 180 days</div>
         <div class="big-score" id="avg-score"></div>
         <div class="big-score-sub" id="avg-sub"></div>
       </div>
       <div class="card">
-        <div class="card-label">Best 5 Nights</div>
-        <ul class="nights-list" id="best-nights"></ul>
+        <div class="card-label">Best 5 Days</div>
+        <ul class="nights-list" id="best-days"></ul>
       </div>
       <div class="card">
-        <div class="card-label">Worst 5 Nights</div>
-        <ul class="nights-list" id="worst-nights"></ul>
+        <div class="card-label">Worst 5 Days</div>
+        <ul class="nights-list" id="worst-days"></ul>
       </div>
     </div>
 
+    <!-- Section 3: Bar chart over time -->
     <div class="grid grid-full">
       <div class="card chart-card">
-        <div class="card-label">Score Over Time</div>
+        <div class="card-label">Readiness Score Over Time</div>
         <div class="chart-wrap">
           <div class="chart" id="chart"></div>
         </div>
@@ -404,27 +385,15 @@
       </div>
     </div>
 
+    <!-- Section 4 & 5: Day of week + contributor averages -->
     <div class="grid grid-wide" style="margin-top:12px">
       <div class="card">
         <div class="card-label">Average Score by Day of Week</div>
         <div id="dow"></div>
       </div>
       <div class="card">
-        <div class="card-label">Contributor Breakdown</div>
+        <div class="card-label">Contributor Averages — 180 Days</div>
         <div id="contributors"></div>
-      </div>
-    </div>
-
-    <div class="grid grid-full" style="margin-top:12px">
-      <div class="card">
-        <div class="card-label">Latency Trend — Are You Improving?</div>
-        <canvas id="latency-canvas" style="width:100%;display:block"></canvas>
-        <div style="display:flex;gap:24px;margin-top:12px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--label)">
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:24px;height:2px;background:#0066FF"></span> 7-day avg</span>
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> nightly score</span>
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 60</span>
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> your avg (73.1)</span>
-        </div>
       </div>
     </div>
 
@@ -433,7 +402,6 @@
   <script>
     const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-    // Theme toggle
     const root = document.documentElement;
     const btn = document.getElementById('theme-toggle');
     const saved = localStorage.getItem('theme') || 'dark';
@@ -449,16 +417,16 @@
     async function load() {
       let data;
       try {
-        const res = await fetch('http://localhost:3000/api/sleep');
+        const res = await fetch('/api/readiness/history180');
         const json = await res.json();
         data = json.data;
       } catch (e) {
-        document.getElementById('status').textContent = 'Error: could not reach http://localhost:3000/api/sleep — is the server running?';
+        document.getElementById('status').textContent = 'Error: could not reach server — is it running?';
         return;
       }
 
       if (!data || !data.length) {
-        document.getElementById('status').textContent = 'No sleep data returned.';
+        document.getElementById('status').textContent = 'No readiness data returned.';
         return;
       }
 
@@ -467,28 +435,28 @@
 
       // Header date range
       document.getElementById('range').textContent =
-        `${data[0].day}  —  ${data[data.length - 1].day}  ·  ${data.length} nights`;
+        `${data[0].day}  —  ${data[data.length - 1].day}  ·  ${data.length} days`;
 
-      // Average score
+      // Section 1: Average score
       const avg = data.reduce((s, d) => s + d.score, 0) / data.length;
       document.getElementById('avg-score').textContent = avg.toFixed(1);
       document.getElementById('avg-sub').textContent =
         `${data[0].day}  —  ${data[data.length - 1].day}`;
 
-      // Best / worst
+      // Section 2: Best / worst
       const sorted = [...data].sort((a, b) => b.score - a.score);
-      const renderNights = (el, nights, cls) => {
-        el.innerHTML = nights.map(d =>
+      const renderDays = (el, days, cls) => {
+        el.innerHTML = days.map(d =>
           `<li>
             <span class="date">${d.day}</span>
             <span class="${cls}">${d.score}</span>
           </li>`
         ).join('');
       };
-      renderNights(document.getElementById('best-nights'),  sorted.slice(0, 5),       'score-good');
-      renderNights(document.getElementById('worst-nights'), sorted.slice(-5).reverse(), 'score-bad');
+      renderDays(document.getElementById('best-days'),  sorted.slice(0, 5),        'score-good');
+      renderDays(document.getElementById('worst-days'), sorted.slice(-5).reverse(), 'score-bad');
 
-      // Bar chart
+      // Section 3: Bar chart
       const chart = document.getElementById('chart');
       const maxScore = Math.max(...data.map(d => d.score));
       chart.innerHTML = data.map(d => {
@@ -502,7 +470,7 @@
       document.getElementById('chart-start').textContent = data[0].day;
       document.getElementById('chart-end').textContent = data[data.length - 1].day;
 
-      // Day of week
+      // Section 4: Day of week
       const byDay = {};
       data.forEach(d => {
         const dow = new Date(d.day).getUTCDay();
@@ -510,157 +478,44 @@
         byDay[dow].push(d.score);
       });
       const dowAvgs = Object.entries(byDay)
-        .map(([dow, scores]) => ({ day: DAYS[dow], avg: scores.reduce((a,b) => a+b,0)/scores.length }))
+        .map(([dow, scores]) => ({ day: DAYS[dow], avg: scores.reduce((a, b) => a + b, 0) / scores.length }))
         .sort((a, b) => b.avg - a.avg);
       const maxDow = Math.max(...dowAvgs.map(d => d.avg));
       document.getElementById('dow').innerHTML = dowAvgs.map((d, i) =>
         `<div class="dow-row ${i === 0 ? 'dow-best' : ''}">
           <div class="dow-name">${d.day}</div>
-          <div class="dow-bar-wrap"><div class="dow-bar" style="width:${(d.avg/maxDow*100).toFixed(1)}%"></div></div>
+          <div class="dow-bar-wrap"><div class="dow-bar" style="width:${(d.avg / maxDow * 100).toFixed(1)}%"></div></div>
           <div class="dow-val">${d.avg.toFixed(1)}</div>
         </div>`
       ).join('');
 
-      // Contributors — full-width bars with score inside
-      const keys = Object.keys(data[0].contributors);
-      const contribAvgs = keys.map(k => ({
-        name: k,
-        avg: data.reduce((s, d) => s + d.contributors[k], 0) / data.length,
-      })).sort((a, b) => a.avg - b.avg);
-      const weakest = contribAvgs[0].name;
-      document.getElementById('contributors').innerHTML = contribAvgs.map(c => {
-        const isWeak = c.name === weakest;
-        const pct = (c.avg / 100 * 100).toFixed(1);
-        return `<div class="contrib-row ${isWeak ? 'contrib-weak' : 'contrib-normal'}">
-          <div class="contrib-header">
-            <span class="contrib-name">${c.name.replace(/_/g, ' ')}</span>
-            <span style="display:flex;align-items:center;gap:12px">
-              ${isWeak ? '<span class="contrib-weak-tag">weak point</span>' : ''}
-              ${c.name === 'latency' ? '<a href="latency.html" class="view-details-link">VIEW DETAILS →</a>' : ''}
-            </span>
-          </div>
-          <div class="contrib-bar-outer">
-            <div class="contrib-bar-fill" style="width:${pct}%">
-              <span>${c.avg.toFixed(1)}</span>
+      // Section 5: Contributor averages
+      const validData = data.filter(d => d.contributors && Object.keys(d.contributors).length > 0);
+      if (validData.length) {
+        const keys = Object.keys(validData[0].contributors);
+        const contribAvgs = keys.map(k => ({
+          name: k,
+          avg: validData.reduce((s, d) => s + (d.contributors[k] ?? 0), 0) / validData.length,
+        })).sort((a, b) => a.avg - b.avg);
+        const weakest = contribAvgs[0].name;
+        document.getElementById('contributors').innerHTML = contribAvgs.map(c => {
+          const isWeak = c.name === weakest;
+          return `<div class="contrib-row ${isWeak ? 'contrib-weak' : 'contrib-normal'}">
+            <div class="contrib-header">
+              <span class="contrib-name">${c.name.replace(/_/g, ' ')}</span>
+              <span style="display:flex;align-items:center;gap:12px">
+                ${isWeak ? '<span class="contrib-weak-tag">weak point</span>' : ''}
+                ${c.name === 'recovery_index' ? '<a href="recovery.html" class="view-details-link">VIEW DETAILS →</a>' : ''}
+              </span>
             </div>
-          </div>
-        </div>`;
-      }).join('');
-
-      // Latency trend canvas
-      drawLatencyChart(data);
-
-      // Redraw canvas when theme toggles
-      document.getElementById('theme-toggle').addEventListener('click', () => {
-        requestAnimationFrame(() => drawLatencyChart(data));
-      }, { once: false });
-    }
-
-    function drawLatencyChart(data) {
-      const canvas = document.getElementById('latency-canvas');
-      const style = getComputedStyle(document.documentElement);
-      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-
-      const colorText   = style.getPropertyValue('--text').trim();
-      const colorLabel  = style.getPropertyValue('--label').trim();
-      const colorDivider = style.getPropertyValue('--divider').trim();
-      const colorAccent = '#0066FF';
-      const colorBad    = '#FF3B3B';
-      const colorAvgLine = isDark ? '#444' : '#bbb';
-
-      const PAD = { top: 16, right: 20, bottom: 36, left: 44 };
-      const W = canvas.parentElement.clientWidth - 56; // card padding 28*2
-      const H = 200;
-      canvas.width  = W;
-      canvas.height = H;
-      canvas.style.height = H + 'px';
-
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, W, H);
-
-      const plotW = W - PAD.left - PAD.right;
-      const plotH = H - PAD.top - PAD.bottom;
-      const n = data.length;
-      const AVG_LINE = 73.1;
-      const YMIN = 0, YMAX = 100;
-
-      const xPos = i => PAD.left + (i / (n - 1)) * plotW;
-      const yPos = v => PAD.top + plotH - ((v - YMIN) / (YMAX - YMIN)) * plotH;
-
-      // Y gridlines + labels at 0, 25, 50, 75, 100
-      ctx.font = '10px Inter, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      [0, 25, 50, 75, 100].forEach(v => {
-        const y = yPos(v);
-        ctx.strokeStyle = colorDivider;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 4]);
-        ctx.beginPath();
-        ctx.moveTo(PAD.left, y);
-        ctx.lineTo(W - PAD.right, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = colorLabel;
-        ctx.fillText(v, PAD.left - 8, y);
-      });
-
-      // Average dashed reference line at 73.1
-      const yAvg = yPos(AVG_LINE);
-      ctx.strokeStyle = colorAvgLine;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.moveTo(PAD.left, yAvg);
-      ctx.lineTo(W - PAD.right, yAvg);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = colorAvgLine;
-      ctx.textAlign = 'left';
-      ctx.fillText('73.1', W - PAD.right + 3, yAvg);
-
-      // X-axis month labels
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = colorLabel;
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      let lastMonth = -1;
-      data.forEach((d, i) => {
-        const mo = new Date(d.day).getUTCMonth();
-        if (mo !== lastMonth) {
-          lastMonth = mo;
-          ctx.fillText(MONTHS[mo], xPos(i), H - PAD.bottom + 8);
-        }
-      });
-
-      // Individual dots
-      data.forEach((d, i) => {
-        const lat = d.contributors.latency;
-        const x = xPos(i), y = yPos(lat);
-        const below = lat < 60;
-        ctx.beginPath();
-        ctx.arc(x, y, below ? 3 : 2, 0, Math.PI * 2);
-        ctx.fillStyle = below ? colorBad : colorAccent;
-        ctx.globalAlpha = below ? 0.9 : 0.45;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      });
-
-      // 7-day rolling average line
-      ctx.beginPath();
-      ctx.strokeStyle = colorAccent;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      let started = false;
-      data.forEach((d, i) => {
-        if (i < 6) return;
-        const window = data.slice(i - 6, i + 1).map(x => x.contributors.latency);
-        const avg = window.reduce((a, b) => a + b, 0) / 7;
-        const x = xPos(i), y = yPos(avg);
-        if (!started) { ctx.moveTo(x, y); started = true; }
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+            <div class="contrib-bar-outer">
+              <div class="contrib-bar-fill" style="width:${c.avg.toFixed(1)}%">
+                <span>${c.avg.toFixed(1)}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      }
     }
 
     load();

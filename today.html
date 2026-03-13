@@ -277,14 +277,77 @@
       color: var(--accent);
     }
 
+    /* Historical context comparison cards */
+    .context-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .context-card { background: var(--surface); padding: 18px 20px; }
+    .context-metric {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--label);
+      margin-bottom: 10px;
+    }
+    .context-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      line-height: 0.9;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .context-vs {
+      font-size: 11px;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .context-arrow { font-size: 13px; line-height: 1; }
+    .context-above { color: var(--accent); }
+    .context-below { color: var(--bad); }
+    .context-neutral { color: var(--dim); }
+    .context-avg { font-size: 10px; color: var(--label); margin-top: 3px; }
+
+    .insight-bar {
+      background: var(--surface);
+      padding: 16px 20px;
+      margin-top: 12px;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--dim);
+      line-height: 1.7;
+      border-left: 2px solid var(--accent);
+    }
+    .insight-bar.insight-warning { border-left-color: var(--amber); }
+    .insight-bar.insight-rest    { border-left-color: var(--bad); }
+
+    .nav { display: flex; gap: 4px; }
+    .nav-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-decoration: none;
+      padding: 4px 10px;
+    }
+    .nav-link:hover { color: var(--text); text-decoration: none; }
+    .nav-link.active { color: var(--dim); background: var(--surface); border-radius: 4px; cursor: default; pointer-events: none; }
+    .nav-link:not(.active) { color: var(--accent); text-decoration: underline; }
+
     #status { color: var(--label); font-size: 12px; padding: 60px 0; letter-spacing: 0.06em; }
   </style>
 </head>
 <body>
   <header>
     <div class="header-left">
-      <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
-      <h1>Today's Energy</h1>
+      <a href="today.html" class="nav-link active" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.18em;font-weight:400;text-transform:uppercase;pointer-events:none;">Today's Energy</a>
+      <nav class="nav">
+        <a href="dashboard.html" class="nav-link">Sleep</a>
+        <a href="readiness.html" class="nav-link">Readiness</a>
+      </nav>
     </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">🌙</button>
   </header>
@@ -299,14 +362,13 @@
         <div class="forecast-banner">
           <div>
             <div class="forecast-label" id="forecast-label"></div>
-            <div style="display:flex;align-items:baseline;gap:16px">
-              <div class="forecast-score" id="forecast-score"></div>
-              <div id="forecast-weighted" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;opacity:0.6;line-height:1"></div>
-            </div>
+            <div class="forecast-score" id="forecast-weighted"></div>
+            <div id="forecast-score" style="display:none"></div>
           </div>
           <div class="forecast-meta">
             <div class="forecast-explain" id="forecast-explain"></div>
             <div id="forecast-weighted-label" style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--label);margin-top:8px"></div>
+            <div class="insight-bar" id="insight-bar" style="display:none;margin-top:16px"></div>
           </div>
         </div>
       </div>
@@ -319,6 +381,8 @@
           <div class="card-label">Last Night's Sleep</div>
           <div class="stat-value" id="sleep-score">—</div>
           <div class="stat-detail" id="sleep-detail"></div>
+          <div id="sleep-vs" style="margin-top:8px;font-size:12px;font-weight:500"></div>
+          <div id="sleep-avg-label" style="font-size:11px;color:var(--dim);margin-top:2px"></div>
         </div>
         <div class="card">
           <div class="card-label">Readiness Score</div>
@@ -326,6 +390,8 @@
           <div class="drag-label">Drag on Energy</div>
           <div class="drag-value" id="readiness-drag-name"></div>
           <div class="stat-detail" id="readiness-drag-val" style="margin-top:2px"></div>
+          <div id="readiness-vs" style="margin-top:8px;font-size:12px;font-weight:500"></div>
+          <div id="readiness-avg-label" style="font-size:11px;color:var(--dim);margin-top:2px"></div>
         </div>
         <div class="card">
           <div class="card-label">Recovery Index</div>
@@ -334,6 +400,11 @@
           <div class="stat-detail">How recovered your body is from recent strain. Below 70 suggests your system is still under load.</div>
         </div>
       </div>
+    </div>
+
+    <!-- Section 2b: Historical context -->
+    <div class="section">
+      <div class="context-grid" id="context-grid"></div>
     </div>
 
     <!-- Section 3: Readiness contributors -->
@@ -378,14 +449,18 @@
     }
 
     async function load() {
-      let readiness, activity, stress, sleepYesterday;
+      let readiness, activity, stress, sleepYesterday, sleep30, readiness30;
       try {
-        [readiness, activity, stress, sleepYesterday] = await Promise.all([
+        [readiness, activity, stress, sleepYesterday, sleep30, readiness30] = await Promise.all([
           fetchJSON('/api/readiness'),
           fetchJSON('/api/activity'),
           fetchJSON('/api/stress'),
           fetchJSON('/api/sleep/yesterday'),
+          fetchJSON('/api/sleep/history'),
+          fetchJSON('/api/readiness/history'),
         ]);
+        console.log('RAW /api/readiness:', JSON.stringify(readiness, null, 2));
+        console.log('RAW /api/sleep/history:', JSON.stringify(sleep30, null, 2));
       } catch (e) {
         document.getElementById('status').textContent = 'Error: could not reach server — is it running?';
         return;
@@ -442,7 +517,7 @@
       scoreEl.style.color = color;
 
       const weightedEl = document.getElementById('forecast-weighted');
-      weightedEl.textContent = weighted !== null ? weighted : '';
+      weightedEl.textContent = weighted !== null ? weighted : (readinessScore ?? '—');
       weightedEl.style.color = color;
 
       document.getElementById('forecast-weighted-label').textContent = hasAll
@@ -473,6 +548,105 @@
       const riEl = document.getElementById('recovery-index');
       riEl.textContent = ri ?? '—';
       riEl.style.color = ri === null ? 'var(--dim)' : ri >= 70 ? 'var(--accent)' : 'var(--bad)';
+
+      // Section 2b: Historical context
+      const sleep30Data = sleep30?.data ?? [];
+      const readiness30Data = readiness30?.data ?? [];
+
+      const avg30 = (arr, fn) => arr.length ? arr.reduce((s, d) => s + fn(d), 0) / arr.length : null;
+
+      const sleepAvg30    = avg30(sleep30Data, d => d.score);
+      const readinessAvg30 = avg30(readiness30Data.filter(d => d.score), d => d.score);
+      const hrvAvg30      = avg30(readiness30Data.filter(d => d.contributors?.hrv_balance != null), d => d.contributors.hrv_balance);
+
+      const todayHrv = r?.contributors?.hrv_balance ?? null;
+
+      function contextCard(metricName, todayVal, avg30Val) {
+        if (todayVal === null || avg30Val === null) {
+          return `<div class="context-card">
+            <div class="context-metric">${metricName}</div>
+            <div class="context-value" style="color:var(--dim)">—</div>
+            <div class="context-avg">No baseline yet</div>
+          </div>`;
+        }
+        const diff = todayVal - avg30Val;
+        const absDiff = Math.abs(diff).toFixed(1);
+        const isAbove = diff >= 0;
+        const cls = isAbove ? 'context-above' : 'context-below';
+        const arrow = isAbove ? '↑' : '↓';
+        const label = isAbove ? `+${absDiff} above your norm` : `−${absDiff} below your norm`;
+        return `<div class="context-card">
+          <div class="context-metric">${metricName}</div>
+          <div class="context-value">${Math.round(todayVal)}</div>
+          <div class="context-vs ${cls}">
+            <span class="context-arrow">${arrow}</span>
+            <span>${label}</span>
+          </div>
+          <div class="context-avg">30-day avg: ${avg30Val.toFixed(1)}</div>
+        </div>`;
+      }
+
+      // Populate merged sleep card
+      if (sleepScore !== null && sleepAvg30 !== null) {
+        const diff = sleepScore - sleepAvg30;
+        const isAbove = diff >= 0;
+        const vsEl = document.getElementById('sleep-vs');
+        vsEl.textContent = `${isAbove ? '↑' : '↓'} ${isAbove ? '+' : '−'}${Math.abs(diff).toFixed(1)} ${isAbove ? 'above' : 'below'} your norm`;
+        vsEl.style.color = isAbove ? 'var(--accent)' : 'var(--bad)';
+        document.getElementById('sleep-avg-label').textContent = `30-day avg: ${sleepAvg30.toFixed(1)}`;
+      }
+
+      // Populate merged readiness card
+      if (readinessScore !== null && readinessAvg30 !== null) {
+        const diff = readinessScore - readinessAvg30;
+        const isAbove = diff >= 0;
+        const vsEl = document.getElementById('readiness-vs');
+        vsEl.textContent = `${isAbove ? '↑' : '↓'} ${isAbove ? '+' : '−'}${Math.abs(diff).toFixed(1)} ${isAbove ? 'above' : 'below'} your norm`;
+        vsEl.style.color = isAbove ? 'var(--accent)' : 'var(--bad)';
+        document.getElementById('readiness-avg-label').textContent = `30-day avg: ${readinessAvg30.toFixed(1)}`;
+      }
+
+      document.getElementById('context-grid').innerHTML = [
+        contextCard('HRV Balance', todayHrv, hrvAvg30),
+      ].join('');
+
+      // Insight sentence
+      const sleepAbove     = sleepScore !== null && sleepAvg30 !== null && sleepScore >= sleepAvg30;
+      const readinessAbove = readinessScore !== null && readinessAvg30 !== null && readinessScore >= readinessAvg30;
+      const hrvAbove       = todayHrv !== null && hrvAvg30 !== null && todayHrv >= hrvAvg30;
+      const hasContext     = sleepAvg30 !== null && readinessAvg30 !== null && hrvAvg30 !== null;
+
+      if (hasContext) {
+        let insight, insightClass = '';
+        if (sleepAbove && readinessAbove && hrvAbove) {
+          insight = 'Everything is aligned — this could be one of your better days. Go after it.';
+        } else if (!sleepAbove && !readinessAbove && !hrvAbove) {
+          insight = 'Your body is asking for rest — protect your energy today.';
+          insightClass = 'insight-rest';
+        } else if (sleepAbove && !hrvAbove && label === 'HIGH ENERGY' && todayHrv !== null && hrvAvg30 !== null && (hrvAvg30 - todayHrv) > 8) {
+          insight = 'Great physical recovery today, but your nervous system is under load — high energy available, protect your mental focus.';
+          insightClass = 'insight-warning';
+        } else if (sleepAbove && !hrvAbove) {
+          insight = 'Good sleep, but your nervous system needs more recovery — moderate intensity today.';
+          insightClass = 'insight-warning';
+        } else if (!sleepAbove && readinessAbove) {
+          insight = 'Sleep was below par but readiness held up — steady effort is fine, avoid pushing the ceiling.';
+          insightClass = 'insight-warning';
+        } else if (sleepAbove && readinessAbove && !hrvAbove) {
+          insight = 'Strong metrics today but HRV suggests some nervous system stress — stay within yourself.';
+          insightClass = 'insight-warning';
+        } else if (!readinessAbove && hrvAbove) {
+          insight = 'HRV looks solid but readiness is dragged down by other factors — check your contributors below.';
+          insightClass = 'insight-warning';
+        } else {
+          insight = 'Mixed signals today — use the contributors below to find your limiting factor.';
+          insightClass = 'insight-warning';
+        }
+        const insightEl = document.getElementById('insight-bar');
+        insightEl.textContent = insight;
+        insightEl.className = `insight-bar ${insightClass}`;
+        insightEl.style.display = 'block';
+      }
 
       // Section 3: Readiness contributors
       if (r?.contributors) {
