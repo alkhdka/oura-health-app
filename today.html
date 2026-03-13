@@ -260,38 +260,6 @@
       color: var(--accent);
     }
 
-    /* Historical context comparison cards */
-    .context-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-    .context-card { background: var(--surface); padding: 18px 20px; }
-    .context-metric {
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--label);
-      margin-bottom: 10px;
-    }
-    .context-value {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 52px;
-      line-height: 0.9;
-      letter-spacing: -1px;
-      color: var(--text);
-      margin-bottom: 8px;
-    }
-    .context-vs {
-      font-size: 11px;
-      font-weight: 400;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .context-arrow { font-size: 13px; line-height: 1; }
-    .context-above { color: var(--accent); }
-    .context-below { color: var(--bad); }
-    .context-neutral { color: var(--dim); }
-    .context-avg { font-size: 10px; color: var(--label); margin-top: 3px; }
-
     .nav { display: flex; gap: 4px; }
     .nav-link {
       font-family: 'Inter', sans-serif;
@@ -386,11 +354,6 @@
           <div class="stat-detail">How recovered your body is from recent strain. Below 70 suggests your system is still under load.</div>
         </div>
       </div>
-    </div>
-
-    <!-- Section 2b: Historical context -->
-    <div class="section">
-      <div class="context-grid" id="context-grid"></div>
     </div>
 
     <!-- Section 3: Readiness contributors -->
@@ -544,30 +507,6 @@
       }
       document.getElementById('forecast-insight').textContent = insight;
 
-      function contextCard(metricName, todayVal, avg30Val) {
-        if (todayVal === null || avg30Val === null) {
-          return `<div class="context-card">
-            <div class="context-metric">${metricName}</div>
-            <div class="context-value" style="color:var(--dim)">—</div>
-            <div class="context-avg">No baseline yet</div>
-          </div>`;
-        }
-        const diff = todayVal - avg30Val;
-        const absDiff = Math.abs(diff).toFixed(1);
-        const isAbove = diff >= 0;
-        const cls = isAbove ? 'context-above' : 'context-below';
-        const arrow = isAbove ? '↑' : '↓';
-        const label = isAbove ? `+${absDiff} above your norm` : `−${absDiff} below your norm`;
-        return `<div class="context-card">
-          <div class="context-metric">${metricName}</div>
-          <div class="context-value">${Math.round(todayVal)}</div>
-          <div class="context-vs ${cls}">
-            <span class="context-arrow">${arrow}</span>
-            <span>${label}</span>
-          </div>
-          <div class="context-avg">30-day avg: ${avg30Val.toFixed(1)}</div>
-        </div>`;
-      }
 
       // Populate merged sleep card
       if (sleepScore !== null && sleepAvg30 !== null) {
@@ -588,12 +527,6 @@
         vsEl.style.color = isAbove ? 'var(--accent)' : 'var(--bad)';
         document.getElementById('readiness-avg-label').textContent = `30-day avg: ${readinessAvg30.toFixed(1)}`;
       }
-
-      document.getElementById('context-grid').innerHTML = [
-        contextCard('Last Night\'s Sleep', sleepScore, sleepAvg30),
-        contextCard('Readiness Score', readinessScore, readinessAvg30),
-        contextCard('HRV Balance', todayHrv, hrvAvg30),
-      ].join('');
 
       // Section 3: Readiness contributors
       if (r?.contributors) {
