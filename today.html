@@ -145,6 +145,8 @@
       letter-spacing: -2px;
     }
     .forecast-meta {
+      display: flex;
+      align-items: center;
       padding-bottom: 8px;
     }
     .forecast-date {
@@ -366,9 +368,7 @@
             <div id="forecast-score" style="display:none"></div>
           </div>
           <div class="forecast-meta">
-            <div class="forecast-explain" id="forecast-explain"></div>
-            <div id="forecast-weighted-label" style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--label);margin-top:8px"></div>
-            <div class="insight-bar" id="insight-bar" style="display:none;margin-top:16px"></div>
+            <div id="forecast-insight" style="font-size:14px;font-weight:300;color:var(--dim);line-height:1.6;max-width:340px"></div>
           </div>
         </div>
       </div>
@@ -507,25 +507,15 @@
         ? ri === Math.min(...Object.values(r.contributors))
         : false;
 
-      let label, color, explain;
+      let label, color;
       if (weighted === null) {
         label = 'NO DATA'; color = 'var(--dim)';
-        explain = 'Data not yet available for today.';
       } else if (weighted >= 85) {
         label = 'HIGH ENERGY'; color = 'var(--accent)';
-        explain = riIsLowest
-          ? 'Energy looks strong, though your body is still recovering from recent strain. Push moderately and monitor recovery.'
-          : 'Your body is well-recovered. A great day to push hard or take on something demanding.';
       } else if (weighted >= 70) {
         label = 'MODERATE ENERGY'; color = 'var(--amber)';
-        explain = riIsLowest
-          ? 'Your body is still recovering from recent strain. Normal output is fine — avoid overreaching today.'
-          : 'Your body is reasonably recovered. Normal output is fine — avoid overreaching.';
       } else {
         label = 'RECOVERY DAY'; color = 'var(--bad)';
-        explain = riIsLowest
-          ? 'Your body is still recovering from recent strain. Rest, light movement, and early sleep are the right calls today.'
-          : 'Your body needs rest. Prioritise light movement, sleep, and low stress today.';
       }
 
       const labelEl = document.getElementById('forecast-label');
@@ -538,11 +528,6 @@
       const weightedEl = document.getElementById('forecast-weighted');
       weightedEl.textContent = weighted !== null ? weighted : (readinessScore ?? '—');
       weightedEl.style.color = color;
-
-      document.getElementById('forecast-weighted-label').textContent = hasAll
-        ? `Weighted score — readiness ×0.5 · sleep ×0.3 · recovery ×0.2`
-        : '';
-      document.getElementById('forecast-explain').textContent = explain;
 
       // Section 2: Sleep yesterday
       const sleepEntry = sleepYesterday.data?.[0];
@@ -579,6 +564,22 @@
       const hrvAvg30      = avg30(readiness30Data.filter(d => d.contributors?.hrv_balance != null), d => d.contributors.hrv_balance);
 
       const todayHrv = r?.contributors?.hrv_balance ?? null;
+
+      // Insight sentence (uses todayHrv + hrvAvg30 defined above)
+      const hrvBelowNorm = todayHrv !== null && hrvAvg30 !== null && todayHrv < hrvAvg30;
+      let insight = '';
+      if (label === 'HIGH ENERGY') {
+        insight = hrvBelowNorm
+          ? 'Strong recovery — protect your mental focus today.'
+          : 'Everything aligned — a great day to push hard.';
+      } else if (label === 'MODERATE ENERGY') {
+        insight = hrvBelowNorm
+          ? 'Good shape — your nervous system needs more recovery.'
+          : 'Solid foundation — normal output is fine today.';
+      } else if (label === 'RECOVERY DAY') {
+        insight = 'Your body is asking for rest — take it easy.';
+      }
+      document.getElementById('forecast-insight').textContent = insight;
 
       function contextCard(metricName, todayVal, avg30Val) {
         if (todayVal === null || avg30Val === null) {
@@ -628,44 +629,6 @@
       document.getElementById('context-grid').innerHTML = [
         contextCard('HRV Balance', todayHrv, hrvAvg30),
       ].join('');
-
-      // Insight sentence
-      const sleepAbove     = sleepScore !== null && sleepAvg30 !== null && sleepScore >= sleepAvg30;
-      const readinessAbove = readinessScore !== null && readinessAvg30 !== null && readinessScore >= readinessAvg30;
-      const hrvAbove       = todayHrv !== null && hrvAvg30 !== null && todayHrv >= hrvAvg30;
-      const hasContext     = sleepAvg30 !== null && readinessAvg30 !== null && hrvAvg30 !== null;
-
-      if (hasContext) {
-        let insight, insightClass = '';
-        if (sleepAbove && readinessAbove && hrvAbove) {
-          insight = 'Everything is aligned — this could be one of your better days. Go after it.';
-        } else if (!sleepAbove && !readinessAbove && !hrvAbove) {
-          insight = 'Your body is asking for rest — protect your energy today.';
-          insightClass = 'insight-rest';
-        } else if (sleepAbove && !hrvAbove && label === 'HIGH ENERGY' && todayHrv !== null && hrvAvg30 !== null && (hrvAvg30 - todayHrv) > 8) {
-          insight = 'Great physical recovery today, but your nervous system is under load — high energy available, protect your mental focus.';
-          insightClass = 'insight-warning';
-        } else if (sleepAbove && !hrvAbove) {
-          insight = 'Good sleep, but your nervous system needs more recovery — moderate intensity today.';
-          insightClass = 'insight-warning';
-        } else if (!sleepAbove && readinessAbove) {
-          insight = 'Sleep was below par but readiness held up — steady effort is fine, avoid pushing the ceiling.';
-          insightClass = 'insight-warning';
-        } else if (sleepAbove && readinessAbove && !hrvAbove) {
-          insight = 'Strong metrics today but HRV suggests some nervous system stress — stay within yourself.';
-          insightClass = 'insight-warning';
-        } else if (!readinessAbove && hrvAbove) {
-          insight = 'HRV looks solid but readiness is dragged down by other factors — check your contributors below.';
-          insightClass = 'insight-warning';
-        } else {
-          insight = 'Mixed signals today — use the contributors below to find your limiting factor.';
-          insightClass = 'insight-warning';
-        }
-        const insightEl = document.getElementById('insight-bar');
-        insightEl.textContent = insight;
-        insightEl.className = `insight-bar ${insightClass}`;
-        insightEl.style.display = 'block';
-      }
 
       // Section 3: Readiness contributors
       if (r?.contributors) {
