@@ -374,6 +374,24 @@
       </div>
     </div>
 
+    <!-- Section 1b: Energy Trend chart -->
+    <div class="section">
+      <div class="card">
+        <div class="card-label">Energy Trend — 180 Days</div>
+        <canvas id="energy-canvas" style="width:100%;display:block"></canvas>
+        <div style="display:flex;gap:24px;margin-top:12px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--label);flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:24px;height:2px;background:#0066FF"></span> 7-day avg</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0066FF;opacity:0.5"></span> daily score</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF3B3B"></span> below 70</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:20px;border-top:1px dashed #555"></span> <span id="energy-avg-legend">your avg</span></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.08em;color:var(--label);margin-top:10px">
+          <span id="energy-chart-start"></span>
+          <span id="energy-chart-end"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- Section 2: Three stat cards -->
     <div class="section">
       <div class="grid3">
@@ -441,6 +459,7 @@
       root.setAttribute('data-theme', isLight ? 'dark' : 'light');
       btn.textContent = isLight ? '🌙' : '☀️';
       localStorage.setItem('theme', isLight ? 'dark' : 'light');
+      requestAnimationFrame(() => drawEnergyChart(_energyPoints));
     });
 
     async function fetchJSON(url) {
@@ -449,18 +468,18 @@
     }
 
     async function load() {
-      let readiness, activity, stress, sleepYesterday, sleep30, readiness30;
+      let readiness, activity, stress, sleepYesterday, sleep30, readiness30, sleep180, readiness180;
       try {
-        [readiness, activity, stress, sleepYesterday, sleep30, readiness30] = await Promise.all([
+        [readiness, activity, stress, sleepYesterday, sleep30, readiness30, sleep180, readiness180] = await Promise.all([
           fetchJSON('/api/readiness'),
           fetchJSON('/api/activity'),
           fetchJSON('/api/stress'),
           fetchJSON('/api/sleep/yesterday'),
           fetchJSON('/api/sleep/history'),
           fetchJSON('/api/readiness/history'),
+          fetchJSON('/api/sleep'),
+          fetchJSON('/api/readiness/history180'),
         ]);
-        console.log('RAW /api/readiness:', JSON.stringify(readiness, null, 2));
-        console.log('RAW /api/sleep/history:', JSON.stringify(sleep30, null, 2));
       } catch (e) {
         document.getElementById('status').textContent = 'Error: could not reach server — is it running?';
         return;
@@ -703,6 +722,141 @@
           ? stFields.map(([k, v]) => `<div class="stress-row"><span class="stress-key">${k}</span><span class="stress-val">${v}</span></div>`).join('')
           : '<div class="placeholder">Still accumulating — check back later.</div>';
       }
+
+      // Energy trend chart
+      _energyPoints = buildEnergyPoints(sleep180, readiness180);
+      drawEnergyChart(_energyPoints);
+    }
+
+    let _energyPoints = null;
+
+    function buildEnergyPoints(sleep180Data, readiness180Data) {
+      const sleepMap = {};
+      (sleep180Data?.data ?? []).forEach(d => { sleepMap[d.day] = d.score; });
+      const points = [];
+      (readiness180Data?.data ?? []).forEach(d => {
+        const s = sleepMap[d.day];
+        const ri = d.contributors?.recovery_index;
+        if (s == null || ri == null || d.score == null) return;
+        points.push({
+          day: d.day,
+          score: Math.round(d.score * 0.5 + s * 0.3 + ri * 0.2),
+        });
+      });
+      points.sort((a, b) => a.day.localeCompare(b.day));
+      return points;
+    }
+
+    function drawEnergyChart(points) {
+      if (!points || !points.length) return;
+      const canvas = document.getElementById('energy-canvas');
+      const style = getComputedStyle(document.documentElement);
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+      const colorLabel   = style.getPropertyValue('--label').trim();
+      const colorDivider = style.getPropertyValue('--divider').trim();
+      const colorAccent  = '#0066FF';
+      const colorBad     = '#FF3B3B';
+      const colorAvgLine = isDark ? '#444' : '#bbb';
+
+      const PAD = { top: 16, right: 56, bottom: 36, left: 44 };
+      const W = canvas.parentElement.clientWidth - 56;
+      const H = 220;
+      canvas.width  = W;
+      canvas.height = H;
+      canvas.style.height = H + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      const plotW = W - PAD.left - PAD.right;
+      const plotH = H - PAD.top - PAD.bottom;
+      const n = points.length;
+      const YMIN = 0, YMAX = 100;
+      const avg180 = points.reduce((s, p) => s + p.score, 0) / points.length;
+
+      const xPos = i => PAD.left + (i / (n - 1)) * plotW;
+      const yPos = v => PAD.top + plotH - ((v - YMIN) / (YMAX - YMIN)) * plotH;
+
+      // Y gridlines
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      [0, 25, 50, 75, 100].forEach(v => {
+        const y = yPos(v);
+        ctx.strokeStyle = colorDivider;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, y);
+        ctx.lineTo(W - PAD.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = colorLabel;
+        ctx.fillText(v, PAD.left - 8, y);
+      });
+
+      // 180-day average dashed line
+      const yAvg = yPos(avg180);
+      ctx.strokeStyle = colorAvgLine;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, yAvg);
+      ctx.lineTo(W - PAD.right, yAvg);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colorAvgLine;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`avg ${avg180.toFixed(1)}`, W - PAD.right + 4, yAvg);
+
+      // X-axis month labels
+      const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = colorLabel;
+      let lastMonth = -1;
+      points.forEach((p, i) => {
+        const mo = new Date(p.day).getUTCMonth();
+        if (mo !== lastMonth) {
+          lastMonth = mo;
+          ctx.fillText(MONTHS_SHORT[mo], xPos(i), H - PAD.bottom + 8);
+        }
+      });
+
+      // Individual dots
+      points.forEach((p, i) => {
+        const below = p.score < 70;
+        const x = xPos(i), y = yPos(p.score);
+        ctx.beginPath();
+        ctx.arc(x, y, below ? 3.5 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = below ? colorBad : colorAccent;
+        ctx.globalAlpha = below ? 0.9 : 0.4;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // 7-day rolling average line
+      ctx.beginPath();
+      ctx.strokeStyle = colorAccent;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      let started = false;
+      points.forEach((p, i) => {
+        if (i < 6) return;
+        const window7 = points.slice(i - 6, i + 1).map(x => x.score);
+        const roll = window7.reduce((a, b) => a + b, 0) / 7;
+        const x = xPos(i), y = yPos(roll);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Update legend avg label
+      document.getElementById('energy-avg-legend').textContent = `your avg (${avg180.toFixed(1)})`;
+      document.getElementById('energy-chart-start').textContent = points[0].day;
+      document.getElementById('energy-chart-end').textContent = points[points.length - 1].day;
     }
 
     load();
