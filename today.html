@@ -135,7 +135,9 @@
     }
     .forecast-meta {
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
       padding-bottom: 8px;
     }
     .forecast-date {
@@ -219,47 +221,6 @@
     .contrib-normal .contrib-bar-fill { background: var(--accent); opacity: 0.55; }
     .contrib-lowest .contrib-bar-fill { background: var(--bad); opacity: 0.85; }
 
-    /* Section 4 — Activity & Stress */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .placeholder {
-      font-size: 12px;
-      font-weight: 300;
-      color: var(--dim);
-      font-style: italic;
-      padding: 8px 0;
-    }
-    .stress-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 7px 0;
-      border-bottom: 1px solid var(--divider);
-      font-size: 12px;
-    }
-    .stress-row:last-child { border-bottom: none; }
-    .stress-key { color: var(--dim); font-weight: 300; }
-    .stress-val {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 20px;
-      letter-spacing: 1px;
-    }
-    .activity-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 7px 0;
-      border-bottom: 1px solid var(--divider);
-      font-size: 12px;
-    }
-    .activity-row:last-child { border-bottom: none; }
-    .activity-key { color: var(--dim); font-weight: 300; }
-    .activity-val {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 20px;
-      letter-spacing: 1px;
-      color: var(--accent);
-    }
-
     .nav { display: flex; gap: 4px; }
     .nav-link {
       font-family: 'Inter', sans-serif;
@@ -305,6 +266,8 @@
           </div>
           <div class="forecast-meta">
             <div id="forecast-insight" style="font-size:14px;font-weight:300;color:var(--dim);line-height:1.6;max-width:340px"></div>
+            <div id="forecast-stress"></div>
+            <div id="forecast-activity"></div>
           </div>
         </div>
       </div>
@@ -361,20 +324,6 @@
       <div class="card">
         <div class="card-label">Readiness Contributors — Sorted Lowest to Highest</div>
         <div id="readiness-contributors"></div>
-      </div>
-    </div>
-
-    <!-- Section 4: Activity & Stress -->
-    <div class="section">
-      <div class="two-col">
-        <div class="card">
-          <div class="card-label">Today's Activity</div>
-          <div id="activity-content"></div>
-        </div>
-        <div class="card">
-          <div class="card-label">Today's Stress</div>
-          <div id="stress-content"></div>
-        </div>
       </div>
     </div>
 
@@ -549,39 +498,36 @@
         document.getElementById('readiness-contributors').innerHTML = '<div class="placeholder">No contributor data available.</div>';
       }
 
-      // Section 4: Activity
-      const act = activity.data?.[0];
-      const actEl = document.getElementById('activity-content');
-      if (!act || Object.keys(act).length === 0) {
-        actEl.innerHTML = '<div class="placeholder">Still accumulating — check back later.</div>';
-      } else {
-        const actFields = [
-          ['Score',        act.score],
-          ['Steps',        act.steps?.toLocaleString()],
-          ['Active calories', act.active_calories],
-          ['Total calories',  act.total_calories],
-          ['High activity (min)', act.high_activity_time != null ? Math.round(act.high_activity_time / 60) : null],
-          ['Medium activity (min)', act.medium_activity_time != null ? Math.round(act.medium_activity_time / 60) : null],
-        ].filter(([, v]) => v != null);
-        actEl.innerHTML = actFields.length
-          ? actFields.map(([k, v]) => `<div class="activity-row"><span class="activity-key">${k}</span><span class="activity-val">${v}</span></div>`).join('')
-          : '<div class="placeholder">Still accumulating — check back later.</div>';
+      // Stress line in forecast card
+      const st = stress.data?.[0];
+      if (st && st.day_summary !== null) {
+        const stressLabels = { stressful: 'STRESSFUL', balanced: 'BALANCED', restorative: 'RESTORATIVE' };
+        const stressColors = { stressful: 'var(--bad)', balanced: 'var(--accent)', restorative: 'var(--good)' };
+        const stLabel = stressLabels[st.day_summary] ?? st.day_summary?.toUpperCase();
+        const stColor = stressColors[st.day_summary] ?? 'var(--dim)';
+        let stressHtml = `<span style="font-size:11px;font-weight:500;letter-spacing:0.1em;color:${stColor}">${stLabel}</span>`;
+        if (st.stress_high != null && st.recovery_high != null) {
+          const stMin = Math.round(st.stress_high / 60);
+          const recMin = Math.round(st.recovery_high / 60);
+          stressHtml += ` <span style="font-size:11px;font-weight:300;color:var(--dim)">${stMin} min stress · ${recMin} min recovery</span>`;
+        }
+        document.getElementById('forecast-stress').innerHTML = stressHtml;
       }
 
-      // Section 4: Stress
-      const st = stress.data?.[0];
-      const stEl = document.getElementById('stress-content');
-      if (!st || st.day_summary === null) {
-        stEl.innerHTML = '<div class="placeholder">Still accumulating — check back later.</div>';
-      } else {
-        const stFields = [
-          ['Day summary',   st.day_summary],
-          ['Stress high (min)',    st.stress_high != null ? Math.round(st.stress_high / 60) : null],
-          ['Recovery high (min)',  st.recovery_high != null ? Math.round(st.recovery_high / 60) : null],
-        ].filter(([, v]) => v != null);
-        stEl.innerHTML = stFields.length
-          ? stFields.map(([k, v]) => `<div class="stress-row"><span class="stress-key">${k}</span><span class="stress-val">${v}</span></div>`).join('')
-          : '<div class="placeholder">Still accumulating — check back later.</div>';
+      // Activity line in forecast card
+      const act = activity.data?.[0];
+      if (act && Object.keys(act).length > 0) {
+        let actText = '';
+        if (act.steps != null) {
+          actText = `${act.steps.toLocaleString()} steps`;
+          if (act.score != null) actText += ` · activity score ${act.score}`;
+        } else if (act.score != null) {
+          actText = `Activity score ${act.score}`;
+        }
+        if (actText) {
+          document.getElementById('forecast-activity').innerHTML =
+            `<span style="font-size:11px;font-weight:300;color:var(--dim)">${actText}</span>`;
+        }
       }
 
       // Energy trend chart
